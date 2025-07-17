@@ -1,0 +1,33 @@
+{
+    "name": "pml2",
+    "version": "1.0.0",
+    "description": "A new mod loader for the game PolyTrack",
+    "type": "module",
+    "scripts": {
+        "format": "prettier --write . --ignore-path .prettierignore --config .prettierrc",
+        "lint": "eslint .",
+        "build:indexes": "node scripts/generateIndexes.js",
+        "build:pml": "tsc && node scripts/bundleDist.js",
+        "build:pml:debug": "tsc --sourceMap && node scripts/bundleDist.js --debug",
+        "build:pml:types": "tsc --declaration --emitDeclarationOnly --outDir types/"
+    },
+    "keywords": [
+        "mod",
+        "loader",
+        "PolyTrack"
+    ],
+    "author": "PolyTrackMods Team",
+    "license": "MIT",
+    "packageManager": "pnpm@10.11.0",
+    "devDependencies": {
+        "@eslint/js": "^9.31.0",
+        "@sanity/diff-match-patch": "^3.2.0",
+        "esbuild": "^0.25.6",
+        "eslint": "^9.31.0",
+        "globals": "^16.3.0",
+        "isbinaryfile": "^5.0.4",
+        "prettier": "3.6.2",
+        "typescript": "^5.8.3",
+        "typescript-eslint": "^8.37.0"
+    }
+}
