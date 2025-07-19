@@ -23,9 +23,11 @@ if (process.argv.length < 3) {
  * The file maps are objects where the keys are file paths and the values are the file contents.
  * @param {{ [filePath: string]: string }} fileMapA The original file map.
  * @param {{ [filePath: string]: string }} fileMapB The modified file map.
+ * @param {{ [filePath: string]: 'bin' | 'text' }} fileTypesA The file types map for the original files.
+ * @param {{ [filePath: string]: 'bin' | 'text' }} fileTypesB The file types map for the modified files.
  * @return {FilePatch[]} An array of file patches, each containing the file path, action, and patch text.
  */
-function buildFilePatches(fileMapA, fileMapB) {
+function buildFilePatches(fileMapA, fileMapB, fileTypesA, fileTypesB) {
     const patches = [];
     const allFilePaths = new Set([
         ...Object.keys(fileMapA),
@@ -33,8 +35,6 @@ function buildFilePatches(fileMapA, fileMapB) {
     ]);
 
     allFilePaths.forEach((filePath) => {
-        if (filePath.endsWith(".type")) return; // Skip type files
-
         const contentA = fileMapA[filePath] ?? "";
         const contentB = fileMapB[filePath] ?? "";
 
@@ -47,7 +47,7 @@ function buildFilePatches(fileMapA, fileMapB) {
                 filePath,
                 action: "create",
                 patchText: stringifyPatches(p),
-                fileType: fileMapB[filePath + ".type"],
+                fileType: fileTypesB[filePath],
             });
         } else if (!fileMapB[filePath]) {
             // File was deleted in fileMapB
@@ -58,7 +58,7 @@ function buildFilePatches(fileMapA, fileMapB) {
                 filePath,
                 action: "delete",
                 patchText: stringifyPatches(p),
-                fileType: fileMapA[filePath + ".type"],
+                fileType: fileTypesA[filePath],
             });
         } else if (contentA !== contentB) {
             // File was modified in fileMapB
@@ -67,7 +67,7 @@ function buildFilePatches(fileMapA, fileMapB) {
                 filePath,
                 action: "modify",
                 patchText: stringifyPatches(p),
-                fileType: fileMapB[filePath + ".type"],
+                fileType: fileTypesB[filePath],
             });
         }
     });
@@ -79,9 +79,10 @@ function buildFilePatches(fileMapA, fileMapB) {
  * Walks through a directory and its subdirectories, populating a file map with the contents of all files.
  * @param {string} dir The directory to walk through.
  * @param {string} relPath The relative path of the current directory (used for maintaining file structure).
- * @param {Object} fileMap The file map to populate with file contents.
+ * @param {{ [filePath: string]: string }} fileMap The file map to populate with file contents.
+ * @param {{ [filePath: string]: 'bin' | 'text' }} fileTypes The file types map to populate with file types.
  */
-function walkDirectory(dir, relPath, fileMap) {
+function walkDirectory(dir, relPath, fileMap, fileTypes) {
     const files = fs.readdirSync(dir);
     files.forEach((file) => {
         const fullPath = path.join(dir, file);
@@ -93,10 +94,10 @@ function walkDirectory(dir, relPath, fileMap) {
                 fileMap[newRelPath] = fs
                     .readFileSync(fullPath)
                     .toString("base64");
-                fileMap[newRelPath + ".type"] = "bin";
+                fileTypes[newRelPath] = "bin";
             } else {
                 fileMap[newRelPath] = fs.readFileSync(fullPath, "utf8");
-                fileMap[newRelPath + ".type"] = "text";
+                fileTypes[newRelPath] = "text";
             }
         }
     });
@@ -117,15 +118,22 @@ if (!fs.existsSync(BUILD_DIR)) {
     throw new Error(`Build directory does not exist: ${BUILD_DIR}`);
 }
 
-let coreFiles = {};
-let buildFiles = {};
+const coreFiles = {};
+const coreFileTypes = {};
+const buildFiles = {};
+const buildFileTypes = {};
 
-walkDirectory(CORE_DIR, "", coreFiles);
-walkDirectory(BUILD_DIR, "", buildFiles);
+walkDirectory(CORE_DIR, "", coreFiles, coreFileTypes);
+walkDirectory(BUILD_DIR, "", buildFiles, buildFileTypes);
 
 const patchName = `${Date.now()}-${process.argv[2]}.patch`;
 const patchFilePath = path.join(PATCHES_DIR, patchName);
-const filePatches = buildFilePatches(coreFiles, buildFiles);
+const filePatches = buildFilePatches(
+    coreFiles,
+    buildFiles,
+    coreFileTypes,
+    buildFileTypes
+);
 
 fs.writeFileSync(patchFilePath, JSON.stringify(filePatches));
 

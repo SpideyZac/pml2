@@ -16,10 +16,11 @@ import { isBinaryFileSync } from "isbinaryfile";
  * Applies a series of patches to a file map.
  * @param {{ [filePath: string]: string }} fileMapA - The original file map.
  * @param {FilePatch[][]} filePatches - The patches to apply.
- * @returns The updated file map.
+ * @returns {{ files: { [filePath: string]: string }, fileTypes: { [filePath: string]: 'bin' | 'text' }}} The updated file map and file types.
  */
 function applyFilePatches(fileMapA, filePatches) {
     const files = { ...fileMapA };
+    const fileTypes = {};
 
     filePatches.forEach((patchGroup) =>
         patchGroup.forEach(({ filePath, action, patchText, fileType }) => {
@@ -34,21 +35,22 @@ function applyFilePatches(fileMapA, filePatches) {
                 const res = applyPatches(ps, oldText)[0];
 
                 files[filePath] = res;
-                files[filePath + ".type"] = fileType;
+                fileTypes[filePath] = fileType;
             }
         })
     );
 
-    return files;
+    return { files, fileTypes };
 }
 
 /**
  * Walks through a directory and its subdirectories, populating a file map with the contents of all files.
  * @param {string} dir The directory to walk through.
  * @param {string} relPath The relative path of the current directory (used for maintaining file structure).
- * @param {Object} fileMap The file map to populate with file contents.
+ * @param {{ [filePath: string]: string }} fileMap The file map to populate with file contents.
+ * @param {{ [filePath: string]: 'bin' | 'text' }} fileTypes The file types map to populate with file types.
  */
-function walkDirectory(dir, relPath, fileMap) {
+function walkDirectory(dir, relPath, fileMap, fileTypes) {
     const files = fs.readdirSync(dir);
     files.forEach((file) => {
         const fullPath = path.join(dir, file);
@@ -60,10 +62,10 @@ function walkDirectory(dir, relPath, fileMap) {
                 fileMap[newRelPath] = fs
                     .readFileSync(fullPath)
                     .toString("base64");
-                fileMap[newRelPath + ".type"] = "bin";
+                fileTypes[newRelPath] = "bin";
             } else {
                 fileMap[newRelPath] = fs.readFileSync(fullPath, "utf8");
-                fileMap[newRelPath + ".type"] = "text";
+                fileTypes[newRelPath] = "text";
             }
         }
     });
@@ -91,8 +93,9 @@ if (fs.existsSync(PATCHED_TEMP_DIR)) {
 }
 fs.mkdirSync(PATCHED_TEMP_DIR, { recursive: true });
 
-let coreFiles = {};
-walkDirectory(CORE_DIR, "", coreFiles);
+const coreFiles = {};
+const coreFileTypes = {};
+walkDirectory(CORE_DIR, "", coreFiles, coreFileTypes);
 
 // Get the patches sorted by timestamp
 const patchFiles = fs
@@ -113,40 +116,33 @@ const filePatches = patchFiles.map((file) => {
     return patchData;
 });
 
-const patchedFiles = applyFilePatches(coreFiles, filePatches);
+const { files: patchedFiles, fileTypes: patchedFileTypes } = applyFilePatches(
+    coreFiles,
+    filePatches
+);
 
-// Write the patched files to the patched-temp & patched directories
-Object.entries(patchedFiles).forEach(([filePath, content]) => {
-    if (filePath.endsWith(".type")) return; // Skip type files
+/**
+ * Writes the patched files to the specified base directory.
+ * @param {string} base_dir The base directory to write the patched files to.
+ */
+function writePatchedFiles(base_dir) {
+    // Write the patched files to the specified base directory
+    Object.entries(patchedFiles).forEach(([filePath, content]) => {
+        const fullPath = path.join(base_dir, filePath);
+        const dir = path.dirname(fullPath);
 
-    const fullPath = path.join(PATCHED_TEMP_DIR, filePath);
-    const dir = path.dirname(fullPath);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
 
-    if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-    }
+        if (patchedFileTypes[filePath] === "bin") {
+            const buffer = Buffer.from(content, "base64");
+            fs.writeFileSync(fullPath, buffer);
+        } else {
+            fs.writeFileSync(fullPath, content, "utf8");
+        }
+    });
+}
 
-    if (patchedFiles[filePath + ".type"] === "bin") {
-        const buffer = Buffer.from(content, "base64");
-        fs.writeFileSync(fullPath, buffer);
-    } else {
-        fs.writeFileSync(fullPath, content, "utf8");
-    }
-});
-Object.entries(patchedFiles).forEach(([filePath, content]) => {
-    if (filePath.endsWith(".type")) return; // Skip type files
-
-    const fullPath = path.join(PATCHED_DIR, filePath);
-    const dir = path.dirname(fullPath);
-
-    if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-    }
-
-    if (patchedFiles[filePath + ".type"] === "bin") {
-        const buffer = Buffer.from(content, "base64");
-        fs.writeFileSync(fullPath, buffer);
-    } else {
-        fs.writeFileSync(fullPath, content, "utf8");
-    }
-});
+writePatchedFiles(PATCHED_TEMP_DIR);
+writePatchedFiles(PATCHED_DIR);

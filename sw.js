@@ -1,4 +1,16 @@
+/**
+ * Reference:
+ * `./index.html#L194`
+ */
 let vfs = null;
+
+/**
+ * Logs a message to the console with a prefix.
+ * @param {string} message - The message to log.
+ */
+function log(message) {
+    console.log(`[Service Worker] ${message}`);
+}
 
 /**
  * Converts a Base64-encoded string to an ArrayBuffer.
@@ -20,9 +32,9 @@ function base64ToArrayBuffer(base64) {
  * Listens for messages to receive the virtual file system (VFS).
  */
 self.addEventListener("message", (event) => {
-    if (event.data.type === "vfs") {
-        vfs = event.data.vfs.files;
-        console.log("[Service Worker] VFS received");
+    if (event.data.type === "initVFS") {
+        vfs = event.data.files;
+        log("VFS received");
         event.ports[0].postMessage({ status: "VFS received" });
     }
 });
@@ -31,14 +43,14 @@ self.addEventListener("message", (event) => {
  * Service worker installation handler.
  */
 self.addEventListener("install", () => {
-    console.log("[Service Worker] Installed");
+    log("Installed");
 });
 
 /**
  * Service worker activation handler.
  */
 self.addEventListener("activate", (event) => {
-    console.log("[Service Worker] Activated");
+    log("Activated");
     event.waitUntil(clients.claim()); // Take control of uncontrolled pages
 });
 
@@ -50,6 +62,7 @@ self.addEventListener("activate", (event) => {
  * @returns {string}
  */
 function getMimeType(path, isBinary) {
+    // TODO: Add more MIME types as needed... although, this should cover most common cases.
     if (path.endsWith(".wasm")) return "application/wasm";
     if (path.endsWith(".js")) return "application/javascript";
     if (path.endsWith(".svg")) return "image/svg+xml";
@@ -70,33 +83,22 @@ self.addEventListener("fetch", async (event) => {
     const url = new URL(event.request.url);
     const path = url.pathname.slice(1); // Remove leading slash
 
-    if (!vfs) {
-        console.log("[Service Worker] VFS not yet set. Waiting...");
-        await new Promise((resolve) => {
-            const interval = setInterval(() => {
-                if (vfs) {
-                    clearInterval(interval);
-                    resolve();
-                }
-            }, 100);
-        });
-    }
+    if (!vfs) return; // If VFS is not initialized, let the network handle the request
 
     const file = vfs.get(path);
-    const typeHint = vfs.get(path + ".type");
 
     if (!file) return; // Let the network handle the request if file not found
 
-    const isBinary = typeHint === "bin";
+    const isBinary = file.type === "bin";
     const mimeType = getMimeType(path, isBinary);
 
-    console.log(`[Service Worker] Serving: ${path} (${mimeType})`);
+    log(`Serving: ${path} (${mimeType})`);
 
     const response = isBinary
-        ? new Response(base64ToArrayBuffer(file), {
+        ? new Response(base64ToArrayBuffer(file.content), {
               headers: { "Content-Type": mimeType },
           })
-        : new Response(file, {
+        : new Response(file.content, {
               headers: { "Content-Type": mimeType },
           });
 

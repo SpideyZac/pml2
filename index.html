@@ -2,312 +2,378 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>PML2 Launcher</title>
         <link rel="icon" href="/public/favicon.ico" type="image/x-icon" />
 
         <!-- Load and apply core + patch files into a virtual file system -->
-        <script type="module">
+        <!-- The virtual file system will be served by a service worker (`sw.js`) -->
+        <script defer type="module">
             import {
                 parsePatch,
                 applyPatches,
             } from "./lib/diff-match-patch.min.js";
 
             /**
-             * Applies a list of patch groups to an existing file map.
-             * Handles addition, update, and deletion of files.
+             * @typedef {Object} FilePatch
+             * @property {string} filePath - The path of the file being patched.
+             * @property {'create' | 'delete' | 'modify'} action - The action taken on the file: 'create', 'delete', or 'modify'.
+             * @property {string} patchText - The text representation of the patch.
+             * @property {'bin' | 'text'} fileType - The type of the file: 'bin' for binary files, 'text' for text files.
              */
-            function applyFilePatches(baseFiles, patchGroups) {
-                const files = { ...baseFiles };
 
-                patchGroups.forEach((group) =>
+            const messageElement = document.getElementById("message");
+
+            /**
+             * Gets the current message from the message element.
+             * @returns {string} The current message text.
+             */
+            function getMessage() {
+                return messageElement.innerText;
+            }
+
+            /**
+             * Adds a message to the message element and logs it to the console.
+             * @param {string} text - The message text to add.
+             */
+            function addMessage(text) {
+                messageElement.innerText += `${text}\n`;
+                console.log(`[PML2 Launcher] ${text}`);
+            }
+
+            /**
+             * Creates a new error message element and appends it to the message element.
+             * @param {string} text - The error message text.
+             * @throws {Error} Throws an error with the provided text.
+             */
+            function addErrorMessage(text) {
+                const errorElement = document.createElement("div");
+                errorElement.textContent = text;
+                errorElement.style.color = "red";
+                messageElement.appendChild(errorElement);
+                console.error(`[PML2 Launcher] ${text}`);
+                throw new Error(text);
+            }
+
+            /**
+             * Clears the message element.
+             */
+            function clearMessages() {
+                messageElement.innerText = "";
+            }
+
+            /**
+             * Initializes the virtual file system with core files and applies patches.
+             * @param {{ [filePath: string]: string }} baseFiles - The base files to initialize the VFS with.
+             * @param {{ [filePath: string]: 'bin' | 'text' }} baseFilesTypes - The types of the base files.
+             * @param {FilePatch[][]} patchGroups - An array of patch groups to apply.
+             */
+            function applyFilePatches(baseFiles, baseFilesTypes, patchGroups) {
+                const files = { ...baseFiles };
+                const filesTypes = { ...baseFilesTypes };
+
+                patchGroups.forEach((group) => {
                     group.forEach(
                         ({ filePath, action, patchText, fileType }) => {
-                            console.log(
-                                `Applying patch: ${filePath} (${action})`
+                            addMessage(
+                                `Applying patch to ${filePath}: ${action}`
                             );
-                            messageText.innerText += `Applying patch: ${filePath} (${action})\n`;
+
                             if (action === "delete") {
                                 delete files[filePath];
-                                delete files[filePath + ".type"];
+                                delete filesTypes[filePath];
                             } else {
-                                const oldContent = files[filePath] ?? "";
+                                const oldContent = files[filePath] || "";
                                 const patches = parsePatch(patchText);
                                 const [newContent] = applyPatches(
                                     patches,
                                     oldContent
                                 );
                                 files[filePath] = newContent;
-                                files[filePath + ".type"] = fileType;
+                                filesTypes[filePath] = fileType;
                             }
                         }
-                    )
-                );
+                    );
+                });
 
-                return files;
+                return { files, filesTypes };
             }
 
             /**
-             * Loads core files listed in `/core-index.json`, returning a map of file paths to content.
+             * Gets the filename and type from a file index.
+             * @param {string} fileIndex - The file index in the format "filename.type".
+             * @returns {{ filename: string, type: 'bin' | 'txt' }} - An object containing the filename and type.
+             */
+            function getFilenameAndType(fileIndex) {
+                const type = fileIndex.split(".").pop(); // "bin" or "txt"
+                const filename = fileIndex.split(".").slice(0, -1).join("."); // Remove the type part
+                return { filename, type };
+            }
+
+            /**
+             * Loads core files listed in `/core-index.json`.
              * Binary files are base64-encoded.
+             * @returns {{ files: { [filePath: string]: string }, fileTypes: { [filePath: string]: 'bin' | 'text' } }} - An object containing the core files and their types.
              */
             async function loadCoreFiles() {
                 const response = await fetch("/core-index.json");
-                messageText.innerText += "Fetched index of core...\n";
-                const fileList = await response.json();
-                const fileMap = {};
+                if (!response.ok) {
+                    addErrorMessage("Failed to load core files index.");
+                }
 
-                let preMsg = messageText.innerText;
+                const coreFilesIndex = await response.json();
+                const files = {};
+                const fileTypes = {};
+
+                const msgPrefix = getMessage();
 
                 await Promise.all(
-                    fileList.map(async (filename) => {
-                        const type = filename.split(".").pop(); // "bin" or "text"
-                        const baseName = filename
-                            .split(".")
-                            .slice(0, -1)
-                            .join(".");
-                        const res = await fetch(`/core/${baseName}`);
-                        messageText.innerText = `${preMsg}Loading ${baseName} (${type})...\n`;
+                    coreFilesIndex.map(async (fileIndex) => {
+                        const { filename, type } =
+                            getFilenameAndType(fileIndex);
+
+                        clearMessages();
+                        addMessage(
+                            `${msgPrefix}Loading core file: ${filename}`
+                        );
+                        const response = await fetch(`/core/${filename}`);
+                        if (!response.ok) {
+                            addErrorMessage(
+                                `Failed to load core file: ${filename}`
+                            );
+                        }
 
                         if (type === "bin") {
-                            const blob = await res.blob();
+                            const blob = await response.blob();
                             const reader = new FileReader();
                             const base64 = await new Promise((resolve) => {
                                 reader.onload = () =>
-                                    resolve(reader.result.split(",")[1]);
+                                    resolve(reader.result.split(",")[1]); // Get base64 part
+                                reader.onerror = () =>
+                                    addErrorMessage(
+                                        `Failed to parse as binary: ${filename}`
+                                    );
                                 reader.readAsDataURL(blob);
                             });
-                            fileMap[baseName] = base64;
-                            fileMap[baseName + ".type"] = "bin";
+                            files[filename] = base64;
+                            fileTypes[filename] = "bin";
                         } else {
-                            const text = await res.text();
-                            fileMap[baseName] = text;
-                            fileMap[baseName + ".type"] = "text";
+                            const text = await response.text();
+                            files[filename] = text;
+                            fileTypes[filename] = "text";
                         }
                     })
                 );
 
-                return fileMap;
+                return { files, fileTypes };
             }
 
             /**
-             * Loads and parses patch files listed in `/patches-index.json`.
+             * Loads and parses patch files listed in `/patch-index.json`.
              * Sorts them chronologically based on their filename prefix.
+             * @returns {FilePatch[][]} An array of patch groups, each containing file patches.
              */
             async function loadPatches() {
                 const response = await fetch("/patches-index.json");
-                messageText.innerText += "Fetched index of patches...\n";
-                const fileList = await response.json();
+                if (!response.ok) {
+                    addErrorMessage("Failed to load patch index.");
+                }
 
-                let preMsg = messageText.innerText;
+                const patchIndex = await response.json();
+                const patchGroups = [];
 
-                const patchFiles = fileList
-                    .filter((f) => f.endsWith(".patch.txt"))
+                const msgPrefix = getMessage();
+
+                const patchFiles = patchIndex
+                    .filter((file) => file.endsWith(".patch.txt"))
                     .sort((a, b) => {
                         const timeA = parseInt(a.split("-")[0], 10);
                         const timeB = parseInt(b.split("-")[0], 10);
                         return timeA - timeB;
                     });
 
-                return await Promise.all(
-                    patchFiles.map(async (filename) => {
-                        const res = await fetch(
-                            `/patches/${filename.replace(/\.txt$/, "")}`
+                for (const file of patchFiles) {
+                    const { filename, type } = getFilenameAndType(file);
+                    clearMessages();
+                    addMessage(`${msgPrefix}Loading patch file: ${filename}`);
+                    const response = await fetch(`/patches/${filename}`);
+                    if (!response.ok) {
+                        addErrorMessage(
+                            `Failed to load patch file: ${filename}`
                         );
-                        messageText.innerText = `${preMsg}Loading patch ${filename}...\n`;
-                        return await res.json();
-                    })
-                );
-            }
-
-            /**
-             * Basic virtual file system wrapper using a Map.
-             */
-            class VirtualFileSystem {
-                constructor() {
-                    this.files = new Map();
-                }
-
-                addFiles(fileMap) {
-                    Object.entries(fileMap).forEach(([path, content]) => {
-                        this.files.set(path, content);
-                    });
-                }
-
-                get(path) {
-                    return this.files.get(path);
-                }
-            }
-
-            const ui = document.getElementById("ui");
-            const loadingDiv = document.createElement("div");
-            loadingDiv.style.display = "flex";
-            loadingDiv.style.flexDirection = "column";
-            loadingDiv.style.position = "absolute";
-            loadingDiv.style.left = "0";
-            loadingDiv.style.top = "0";
-            loadingDiv.style.width = "100%";
-            loadingDiv.style.height = "100%";
-            loadingDiv.style.textAlign = "center";
-            loadingDiv.style.backgroundColor = "#192042";
-            loadingDiv.style.transition = "background-color 1s ease-out";
-            loadingDiv.style.overflow = "hidden";
-
-            loadingDiv.innerHTML = `<img src="/public/pmllogo.svg" style="width: calc(100vw * (1000 / 1300)); height: 200px; margin: 30px auto 0 auto" />`;
-
-            const loadingUI = document.createElement("div");
-            loadingUI.style.margin = "20px 0 0 0";
-            loadingUI.style.padding = "0";
-
-            const loadingText = document.createElement("p");
-            loadingText.innerText = "[PML2] Patching files...";
-            loadingText.style.margin = "5px";
-            loadingText.style.padding = "0";
-            loadingText.style.color = "#ffffff";
-            loadingText.style.fontSize = "32px";
-            loadingText.style.fontStyle = "italic";
-            loadingText.style.fontFamily = "ForcedSquare, Arial, sans-serif";
-            loadingText.style.lineHeight = "1";
-
-            const progressDiv = document.createElement("div");
-            progressDiv.style.textAlign = "left";
-            progressDiv.style.width = "1000px";
-            progressDiv.style.margin = "50px auto";
-
-            const messageText = document.createElement("p");
-            messageText.style.color = "#ffffff";
-            messageText.style.fontSize = "18px";
-            messageText.style.fontStyle = "italic";
-            messageText.style.fontFamily = "ForcedSquare, Arial, sans-serif";
-            messageText.style.lineHeight = "1";
-
-            progressDiv.appendChild(messageText);
-
-            loadingUI.appendChild(loadingText);
-            loadingUI.appendChild(progressDiv);
-
-            loadingDiv.appendChild(loadingUI);
-            ui.appendChild(loadingDiv);
-
-            /**
-             * Entry point: load core files, apply patches, populate VFS,
-             * and inject patched `index.html` content into the document.
-             */
-            (async () => {
-                console.log("Initializing PolyModLoader Launcher...");
-
-                const vfs = new VirtualFileSystem();
-
-                try {
-                    messageText.innerText = "Loading core files...\n";
-                    const coreFiles = await loadCoreFiles();
-                    messageText.innerText +=
-                        "Core files loaded successfully.\n";
-                    messageText.innerText = "Loading patches...\n";
-                    const patches = await loadPatches();
-                    messageText.innerText += "Patches loaded successfully.\n";
-                    messageText.innerText = "Applying patches...\n";
-                    const patchedFiles = applyFilePatches(coreFiles, patches);
-                    messageText.innerText += "Patches applied successfully.\n";
-
-                    messageText.innerText =
-                        "Initializing virtual file system...\n";
-                    vfs.addFiles(patchedFiles);
-                    window.vfs = vfs; // expose globally
-                    console.log(
-                        `Virtual File System initialized with ${Object.keys(patchedFiles).length} files`
-                    );
-
-                    /**
-                     * Registers the service worker and sends the virtual file system (vfs) once ready.
-                     */
-                    let channel = new MessageChannel();
-                    window.addEventListener("load", () => {
-                        if ("serviceWorker" in navigator) {
-                            navigator.serviceWorker
-                                .register("/sw.js", { scope: "/" })
-                                .then((registration) => {
-                                    console.log(
-                                        "ServiceWorker registration successful with scope:",
-                                        registration.scope
-                                    );
-                                })
-                                .catch((error) => {
-                                    console.error(
-                                        "ServiceWorker registration failed:",
-                                        error
-                                    );
-                                });
-
-                            navigator.serviceWorker.ready.then(
-                                (registration) => {
-                                    if (!registration.active) {
-                                        console.warn(
-                                            "ServiceWorker is not active yet."
-                                        );
-                                    }
-                                    console.log(
-                                        "ServiceWorker is ready:",
-                                        registration
-                                    );
-
-                                    // Send the VFS files to the service worker for caching or serving
-                                    if (window.vfs) {
-                                        registration.active.postMessage(
-                                            {
-                                                vfs: window.vfs,
-                                                type: "vfs",
-                                            },
-                                            [channel.port2]
-                                        );
-                                    } else {
-                                        console.warn(
-                                            "VFS not available to send to ServiceWorker."
-                                        );
-                                    }
-                                }
-                            );
-                        }
-                    });
-
-                    // If document is already loaded, manually dispatch 'load' event
-                    if (document.readyState === "complete") {
-                        window.dispatchEvent(new Event("load"));
                     }
 
-                    channel.port1.onmessage = () => {
-                        console.log("ServiceWorker acknowledged VFS");
-                        const indexHtml = vfs.get("index.html");
-                        if (!indexHtml) {
-                            throw new Error("index.html not found in VFS");
-                        }
+                    const patchGroup = await response.json();
 
-                        // Replace document content with patched index.html
-                        messageText.innerText +=
-                            "Injecting patched index.html...\n";
-                        document.documentElement.innerHTML = indexHtml;
-                        console.log(
-                            "Patched index.html injected into document"
-                        );
-
-                        // Manually re-execute any script with id="init"
-                        const initScript =
-                            document.querySelector("script[id='init']");
-                        if (initScript) {
-                            const script = document.createElement("script");
-                            script.textContent = initScript.textContent;
-                            document.head.appendChild(script);
-                        }
-                        console.log("Initialization script executed");
-                    };
-                } catch (err) {
-                    console.error("Error loading or initializing VFS:", err);
-                    document.body.innerHTML = `<h1>Failed to initialize launcher</h1><pre>${err.message}</pre>`;
+                    patchGroups.push(patchGroup);
                 }
-            })();
+
+                return patchGroups;
+            }
+
+            // filePath -> {content, type}
+            const virtualFiles = new Map();
+
+            console.log("Initializing PML2 Launcher...");
+
+            addMessage("Loading core files...");
+            const { files: coreFiles, fileTypes: coreFileTypes } =
+                await loadCoreFiles();
+            addMessage("Core files loaded successfully.");
+            clearMessages();
+
+            addMessage("Loading patches...");
+            const patchGroups = await loadPatches();
+            addMessage("Patches loaded successfully.");
+            clearMessages();
+
+            addMessage("Applying patches to core files...");
+            const { files, filesTypes } = applyFilePatches(
+                coreFiles,
+                coreFileTypes,
+                patchGroups
+            );
+            addMessage("Patches applied successfully.");
+            clearMessages();
+
+            addMessage("Initializing virtual file system...");
+            for (const [filePath, content] of Object.entries(files)) {
+                const type = filesTypes[filePath];
+                virtualFiles.set(filePath, { content, type });
+            }
+            addMessage("Virtual file system initialized successfully.");
+            clearMessages();
+
+            addMessage("PML2 Launcher initialization complete...");
+            clearMessages();
+
+            addMessage("Registering service worker...");
+            const vfsChannel = new MessageChannel(); // So that we can know when the service worker has recieved the VFS
+            if ("serviceWorker" in navigator) {
+                navigator.serviceWorker
+                    .register("/sw.js", { scope: "/" })
+                    .then((registration) => {
+                        addMessage(
+                            `ServiceWorker registered with scope: ${registration.scope}`
+                        );
+                    })
+                    .catch((error) => {
+                        addErrorMessage(
+                            `ServiceWorker registration failed: ${error}`
+                        );
+                    });
+
+                navigator.serviceWorker.ready.then((registration) => {
+                    if (!registration.active) {
+                        addErrorMessage("ServiceWorker is not active.");
+                    }
+
+                    addMessage("ServiceWorker is ready.");
+
+                    registration.active.postMessage(
+                        {
+                            type: "initVFS",
+                            files: virtualFiles,
+                        },
+                        [
+                            vfsChannel.port2, // Send the port to the service worker
+                        ]
+                    );
+                });
+            } else {
+                addErrorMessage("Service workers are not supported.");
+            }
+
+            vfsChannel.port1.onmessage = () => {
+                addMessage(
+                    "Virtual file system initialized in service worker."
+                );
+                clearMessages();
+
+                const indexHtml = virtualFiles.get("index.html");
+                if (!indexHtml) {
+                    addErrorMessage(
+                        "index.html not found in the virtual file system."
+                    );
+                }
+
+                // Replace document content with patched index.html
+                addMessage("Injecting patched index.html");
+                document.documentElement.innerHTML = indexHtml.content;
+
+                const initScript = document.querySelector("script[id='init']");
+                if (initScript) {
+                    const script = document.createElement("script");
+                    script.textContent = initScript.textContent;
+                    document.head.appendChild(script);
+                    initScript.remove();
+                }
+                addMessage("Injection complete.");
+            };
         </script>
     </head>
-
     <body>
-        <div id="ui"></div>
+        <div>
+            <div
+                style="
+                    display: flex;
+                    flex-direction: column;
+                    position: absolute;
+                    left: 0;
+                    top: 0;
+                    width: 100%;
+                    height: 100%;
+                    text-align: center;
+                    background-color: #192042;
+                    transition: background-color 1s ease-out;
+                    overflow: hidden;
+                "
+            >
+                <img
+                    src="/public/pmllogo.svg"
+                    style="
+                        width: calc(100vw * (1000 / 1300));
+                        height: 200px;
+                        margin: 30px auto 0 auto;
+                    "
+                />
+                <div style="margin: 20px 0 0 0; padding: 0">
+                    <p
+                        style="
+                            margin: 5px;
+                            padding: 0;
+                            color: #ffffff;
+                            font-size: 32px;
+                            font-style: italic;
+                            font-family: ForcedSquare, Arial, sans-serif;
+                            line-height: 1;
+                        "
+                    >
+                        [PML2] Patching files...
+                    </p>
+                    <div
+                        style="
+                            text-align: left;
+                            width: 1000px;
+                            margin: 50px auto;
+                            background-color: #0a0e23;
+                            padding: 1px;
+                            padding-left: 15px;
+                        "
+                    >
+                        <p
+                            id="message"
+                            style="
+                                color: #ffffff;
+                                font-size: 18px;
+                                font-style: italic;
+                                font-family: ForcedSquare, Arial, sans-serif;
+                                line-height: 1;
+                            "
+                        ></p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </body>
 </html>
