@@ -58,4 +58,4 @@ interface Mixin {
  * @param mixin The mixin to be applied.
  */
 declare function applyHeadMixin(mixin: Mixin): void;
-export { applyHeadMixin, Mixin, CallbackInfo };
+export { applyHeadMixin, CallbackInfo, Mixin };

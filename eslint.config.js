@@ -33,7 +33,11 @@ export default defineConfig([
     {
         files: ["src/**/*.ts"],
         plugins: { tseslint },
-        languageOptions: { parserOptions: tseslint.parserOptions },
+        languageOptions: {
+            parserOptions: tseslint.parserOptions,
+            globals: globals.browser,
+        },
     },
+
     tseslint.configs.recommended,
 ]);

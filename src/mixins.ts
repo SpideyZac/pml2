@@ -110,7 +110,7 @@ function applyHeadMixin(mixin: Mixin): void {
         content += `if (info.cancelled) return info.returnValue;`;
     }
 
-    eval(`${mixin.method} = function (${params}) { ${content}${footer} }`);
+    eval(`${mixin.method} = function(${params}){${content}${footer}}`);
 }
 
-export { applyHeadMixin, Mixin, CallbackInfo };
+export { applyHeadMixin, CallbackInfo, Mixin };
