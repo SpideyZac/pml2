@@ -42,7 +42,7 @@ interface Mixin {
     /**
      * The location where the mixin is applied.
      */
-    at: "HEAD";
+    at: "HEAD" | "TAIL";
     /**
      * If the mixin is cancellable.
      * Defaults to false.
@@ -113,4 +113,59 @@ function applyHeadMixin(mixin: Mixin): void {
     eval(`${mixin.method} = function(${params}){${content}${footer}}`);
 }
 
-export { applyHeadMixin, CallbackInfo, Mixin };
+/**
+ * Applies a mixin to the tail of a method.
+ * @param mixin The mixin to be applied.
+ */
+function applyTailMixin(mixin: Mixin): void {
+    if (mixin.at !== "TAIL")
+        throw new Error("Mixin must be applied at the tail of the method.");
+    const code = eval(mixin.method).toString();
+    const params = code.slice(code.indexOf("(") + 1, code.indexOf(")"));
+    const header = code.slice(code.indexOf("{") + 1, code.lastIndexOf("}"));
+
+    const info: CallbackInfo = {
+        name: mixin.method,
+        cancellable: mixin.cancellable ?? false,
+        cancelled: false,
+    };
+
+    let content = `var info = ${JSON.stringify(info)};`;
+    if (mixin.cancellable) {
+        content += `info.cancel = () => { info.cancelled = true; };`;
+        content += `info.cancelWithValue = (value) => { info.cancelled = true; info.returnValue = value; };`;
+    }
+
+    const callback = mixin.callback.toString();
+    const callbackParams = callback
+        .slice(callback.indexOf("(") + 1, callback.indexOf(")"))
+        .split(",")
+        .map((param) => param.trim());
+
+    const thisParam = callbackParams[0];
+
+    content += callback
+        .slice(
+            mixin.callback.toString().indexOf("{") + 1,
+            mixin.callback.toString().lastIndexOf("}")
+        )
+        .replace(thisParam, "this");
+
+    if (mixin.cancellable) {
+        content += `if (info.cancelled) return info.returnValue;`;
+    }
+
+    eval(`${mixin.method} = function(${params}){${header}${content}}`);
+}
+
+function registerMixin(mixin: Mixin): void {
+    if (mixin.at === "HEAD") {
+        applyHeadMixin(mixin);
+    } else if (mixin.at === "TAIL") {
+        applyTailMixin(mixin);
+    } else {
+        throw new Error("Invalid mixin location.");
+    }
+}
+
+export { Mixin, CallbackInfo, registerMixin };
