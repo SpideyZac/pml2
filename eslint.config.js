@@ -31,7 +31,7 @@ export default defineConfig([
     },
 
     {
-        files: ["**/*.ts"],
+        files: ["src/**/*.ts"],
         plugins: { tseslint },
         languageOptions: { parserOptions: tseslint.parserOptions },
     },

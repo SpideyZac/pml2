@@ -49,11 +49,10 @@ If you want to modify the PML2 library itself, you can do so by modifying the fi
 
 ```bash
 pnpm build:pml
-pnpm build:pml:debug
 pnpm build:pml:types
 ```
 
-This will create both debug and release builds of the library in the `dist` folder. It will also generate type definitions in the `types` folder.
+This will create a build of the library in the `dist-pml2` folder. It will also generate type definitions in the `types` folder.
 
 ## License
 

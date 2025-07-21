@@ -7,8 +7,7 @@
         "format": "prettier --write . --ignore-path .prettierignore --config .prettierrc",
         "lint": "eslint .",
         "build:indexes": "node scripts/generateIndexes.js",
-        "build:pml": "tsc && node scripts/bundleDist.js",
-        "build:pml:debug": "tsc --sourceMap && node scripts/bundleDist.js --debug",
+        "build:pml": "tsc --sourceMap",
         "build:pml:types": "tsc --declaration --emitDeclarationOnly --outDir types/"
     },
     "keywords": [
