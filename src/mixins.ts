@@ -1,7 +1,7 @@
 /**
- * An interface which represents an info about the environment where the mixin is applied.
+ * A type which represents info about the environment where the mixin is applied.
  */
-interface CallbackInfo {
+type CallbackInfo = {
     /**
      * The name of the method where the mixin is applied.
      */
@@ -22,48 +22,102 @@ interface CallbackInfo {
     /**
      * Cancels the mixin execution.
      */
-    cancel?(): void;
+    cancel?: () => void;
     /**
      * Cancels the mixin execution and returns a value.
      * @param value The value to return.
      */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    cancelWithValue?(value: any): void;
-}
+    cancelWithValue?: (value: any) => void;
+};
 
 /**
- * An interface which represents a mixin that can be applied to a method.
+ * A type which represents a mixin that can be applied to a method.
  */
-interface Mixin {
+type Mixin = {
+    /**
+     * Whether the mixin is applied before or after PolyTrack initialization.
+     */
+    preInit: boolean;
     /**
      * The name of the method where the mixin is applied.
      */
     method: string;
     /**
      * The location where the mixin is applied.
+     *
+     * * `HEAD` - The mixin is applied at the start of the method.
      */
-    at: "HEAD" | "TAIL";
+    at: "HEAD";
     /**
      * If the mixin is cancellable.
      * Defaults to false.
      */
     cancellable?: boolean;
-    // TODO: conditions?
-    // /**
-    //  * If the mixin is applied only if the conditions are met.
-    //  * If a condition is met, it should call `info.cancel()` to cancel the mixin execution.
-    //  * Defaults to an empty array.
-    //  */
-    // // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    // conditions?: Array<(info: CallbackInfo, ...locales: any[]) => void>;
     /**
-     * The callback function to be executed when the mixin is applied.
-     * @param this_ The context of the method where the mixin is applied. The name of the parameter cannot clash with any locales in the target method.
-     * @param info The info about the environment where the mixin is applied.
-     * @param locales The locales in the method used by the mixin.
+     * The code to be executed as the mixin.
+     *
+     * @param ctx The context of the mixin. This is equivalent to `this` in the method. Make sure the name of this parameter does not conflict with any locales in the target method.
+     * @param info The info about the environment where the mixin is applied. Make sure the name of this parameter does not conflict with any locales in the target method.
+     * @param locales The locales of the target method which are accessed by the mixin.
      */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    callback(this_: any, info: CallbackInfo, ...locales: any[]): void;
+    callback(ctx: any, info: CallbackInfo, ...locales: any[]): void;
+};
+
+/**
+ * Parses the parameters of a function and returns them as an array of strings.
+ * @param fn The function to parse.
+ * @returns An array of parameter names.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+function parseFunctionParams(fn: Function): string[] {
+    const code = fn.toString();
+    const params = code.slice(code.indexOf("(") + 1, code.indexOf(")"));
+    return params.split(",").map((param) => param.trim());
+}
+
+/**
+ * Parses the body of a function and returns it as a string.
+ * @param fn The function to parse.
+ * @returns The body of the function as a string.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+function parseFunctionBody(fn: Function): string {
+    const code = fn.toString();
+    return code.slice(code.indexOf("{") + 1, code.lastIndexOf("}"));
+}
+
+/**
+ * Generates the content of a mixin callback function.
+ * @param callback The callback function to be executed as a mixin.
+ * @param ctxParam The name of the context parameter in the callback.
+ * @param infoParam The name of the info parameter in the callback.
+ * @param info The info about the environment where the mixin is applied.
+ * @returns The generated callback content.
+ */
+function generateCallbackContent(
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+    callback: Function,
+    ctxParam: string,
+    infoParam: string,
+    info: CallbackInfo
+): string {
+    let content = `var ${infoParam} = ${JSON.stringify(info)};`;
+
+    if (info.cancellable) {
+        content += `${infoParam}.cancel = () => { ${infoParam}.cancelled = true; };`;
+        content += `${infoParam}.cancelWithValue = (value) => { ${infoParam}.cancelled = true; ${infoParam}.returnValue = value; };`;
+    }
+
+    const ctxRegex = new RegExp(`\\b${ctxParam}\\b`, "g");
+    content += parseFunctionBody(callback).replace(ctxRegex, "this");
+
+    if (info.cancellable) {
+        content += `if (${infoParam}.cancelled) return ${infoParam}.returnValue;`;
+    }
+
+    return content;
 }
 
 /**
@@ -74,9 +128,17 @@ function applyHeadMixin(mixin: Mixin): void {
     if (mixin.at !== "HEAD")
         throw new Error("Mixin must be applied at the head of the method.");
 
-    const code = eval(mixin.method).toString();
-    const params = code.slice(code.indexOf("(") + 1, code.indexOf(")"));
-    const footer = code.slice(code.indexOf("{") + 1, code.lastIndexOf("}"));
+    const func = eval(mixin.method);
+    const params = parseFunctionParams(func);
+    const footer = parseFunctionBody(func);
+
+    const [ctxParam, infoParam] = parseFunctionParams(mixin.callback);
+    if (!ctxParam) {
+        throw new Error("Mixin callback must have a 'ctx' parameter.");
+    }
+    if (!infoParam) {
+        throw new Error("Mixin callback must have an 'info' parameter.");
+    }
 
     const info: CallbackInfo = {
         name: mixin.method,
@@ -84,85 +146,20 @@ function applyHeadMixin(mixin: Mixin): void {
         cancelled: false,
     };
 
-    let content = `var info = ${JSON.stringify(info)};`;
-
-    if (mixin.cancellable) {
-        content += `info.cancel = () => { info.cancelled = true; };`;
-        content += `info.cancelWithValue = (value) => { info.cancelled = true; info.returnValue = value; };`;
-    }
-
-    const callback = mixin.callback.toString();
-    const callbackParams = callback
-        .slice(callback.indexOf("(") + 1, callback.indexOf(")"))
-        .split(",")
-        .map((param) => param.trim());
-
-    const thisParam = callbackParams[0];
-
-    content += callback
-        .slice(
-            mixin.callback.toString().indexOf("{") + 1,
-            mixin.callback.toString().lastIndexOf("}")
-        )
-        .replace(thisParam, "this");
-
-    if (mixin.cancellable) {
-        content += `if (info.cancelled) return info.returnValue;`;
-    }
-
-    eval(`${mixin.method} = function(${params}){${content}${footer}}`);
-}
-
-/**
- * Applies a mixin to the tail of a method.
- * @param mixin The mixin to be applied.
- */
-function applyTailMixin(mixin: Mixin): void {
-    if (mixin.at !== "TAIL")
-        throw new Error("Mixin must be applied at the tail of the method.");
-    const code = eval(mixin.method).toString();
-    const params = code.slice(code.indexOf("(") + 1, code.indexOf(")"));
-    const header = code.slice(code.indexOf("{") + 1, code.lastIndexOf("}"));
-
-    const info: CallbackInfo = {
-        name: mixin.method,
-        cancellable: mixin.cancellable ?? false,
-        cancelled: false,
-    };
-
-    let content = `var info = ${JSON.stringify(info)};`;
-    if (mixin.cancellable) {
-        content += `info.cancel = () => { info.cancelled = true; };`;
-        content += `info.cancelWithValue = (value) => { info.cancelled = true; info.returnValue = value; };`;
-    }
-
-    const callback = mixin.callback.toString();
-    const callbackParams = callback
-        .slice(callback.indexOf("(") + 1, callback.indexOf(")"))
-        .split(",")
-        .map((param) => param.trim());
-
-    const thisParam = callbackParams[0];
-
-    content += callback
-        .slice(
-            mixin.callback.toString().indexOf("{") + 1,
-            mixin.callback.toString().lastIndexOf("}")
-        )
-        .replace(thisParam, "this");
-
-    if (mixin.cancellable) {
-        content += `if (info.cancelled) return info.returnValue;`;
-    }
-
-    eval(`${mixin.method} = function(${params}){${header}${content}}`);
+    const content = generateCallbackContent(
+        mixin.callback,
+        ctxParam,
+        infoParam,
+        info
+    );
+    eval(
+        `${mixin.method} = function(${params.join(",")}){${content}${footer}}`
+    );
 }
 
 function registerMixin(mixin: Mixin): void {
     if (mixin.at === "HEAD") {
         applyHeadMixin(mixin);
-    } else if (mixin.at === "TAIL") {
-        applyTailMixin(mixin);
     } else {
         throw new Error("Invalid mixin location.");
     }
