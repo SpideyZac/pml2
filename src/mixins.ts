@@ -47,8 +47,9 @@ type Mixin = {
      * The location where the mixin is applied.
      *
      * * `HEAD` - The mixin is applied at the start of the method.
+     * * `TAIL` - The mixin is applied at the end of the method (before the final return call in the main scope of the method, if any).
      */
-    at: "HEAD";
+    at: "HEAD" | "TAIL";
     /**
      * If the mixin is cancellable.
      * Defaults to false.
@@ -132,13 +133,9 @@ function applyHeadMixin(mixin: Mixin): void {
     const params = parseFunctionParams(func);
     const footer = parseFunctionBody(func);
 
-    const [ctxParam, infoParam] = parseFunctionParams(mixin.callback);
-    if (!ctxParam) {
-        throw new Error("Mixin callback must have a 'ctx' parameter.");
-    }
-    if (!infoParam) {
-        throw new Error("Mixin callback must have an 'info' parameter.");
-    }
+    let [ctxParam, infoParam] = parseFunctionParams(mixin.callback);
+    ctxParam = ctxParam || "ctx";
+    infoParam = infoParam || "info";
 
     const info: CallbackInfo = {
         name: mixin.method,
@@ -157,9 +154,70 @@ function applyHeadMixin(mixin: Mixin): void {
     );
 }
 
+/**
+ * Applies a mixin to the tail of a method.
+ * @param mixin The mixin to be registered.
+ */
+function applyTailMixin(mixin: Mixin): void {
+    if (mixin.at !== "TAIL")
+        throw new Error("Mixin must be applied at the tail of the method.");
+
+    const func = eval(mixin.method);
+    const params = parseFunctionParams(func);
+    let code = parseFunctionBody(func);
+
+    let [ctxParam, infoParam] = parseFunctionParams(mixin.callback);
+    ctxParam = ctxParam || "ctx";
+    infoParam = infoParam || "info";
+
+    const info: CallbackInfo = {
+        name: mixin.method,
+        cancellable: mixin.cancellable ?? false,
+        cancelled: false,
+    };
+
+    const content = generateCallbackContent(
+        mixin.callback,
+        ctxParam,
+        infoParam,
+        info
+    );
+
+    let lastReturnIndex = code.lastIndexOf("return");
+    if (lastReturnIndex !== -1) {
+        // If the number of closing braces after the last return statement is greater than 0 (because the main scope's braces are removed from code),
+        // it means that the return statement is not in the main scope of the method.
+        const closingBracesCount = (
+            code.slice(lastReturnIndex).match(/}/g) || []
+        ).length;
+        if (closingBracesCount !== 0) {
+            lastReturnIndex = -1;
+        }
+    }
+
+    if (lastReturnIndex === -1) {
+        // If no valid return statement was found, we can safely append the mixin content to the end of the method.
+        code += content;
+    } else {
+        // If a valid return statement was found, we need to insert the mixin content before it.
+        code =
+            code.slice(0, lastReturnIndex) +
+            content +
+            code.slice(lastReturnIndex);
+    }
+
+    eval(`${mixin.method} = function(${params.join(",")}){${code}}`);
+}
+
+/**
+ * Registers a mixin to be applied to a method.
+ * @param mixin The mixin to be registered.
+ */
 function registerMixin(mixin: Mixin): void {
     if (mixin.at === "HEAD") {
         applyHeadMixin(mixin);
+    } else if (mixin.at === "TAIL") {
+        applyTailMixin(mixin);
     } else {
         throw new Error("Invalid mixin location.");
     }
