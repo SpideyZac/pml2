@@ -27,7 +27,7 @@ module.exports = (env, argv) => {
             filename: "PolyModLoader.bundle.js",
             path: path.resolve(
                 __dirname,
-                isProd ? "dist-pml2/release" : "dist-pml2/debug"
+                isProd ? "dist/pml/release" : "dist/pml/debug"
             ),
             library: "PolyModLoader",
         },

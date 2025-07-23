@@ -52,7 +52,7 @@ pnpm build:pml
 pnpm build:pml:types
 ```
 
-This will create a build of the library in the `dist-pml2` folder. It will also generate type definitions in the `types` folder.
+This will create a build of the library in the `dist` folder. It will also generate type definitions in the `types` folder.
 
 ## License
 

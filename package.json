@@ -8,8 +8,8 @@
         "format": "prettier --write . --ignore-path .prettierignore --config .prettierrc",
         "lint": "eslint .",
         "build:indexes": "node scripts/generateIndexes.js",
-        "build:pml": "rimraf dist-pml2/release && webpack -c ./webpack.config.cjs --mode production",
-        "build:pml:debug": "rimraf dist-pml2/debug && webpack -c ./webpack.config.cjs --mode development",
+        "build:pml": "rimraf dist/pml/release && webpack -c ./webpack.config.cjs --mode production",
+        "build:pml:debug": "rimraf dist/pml/debug && webpack -c ./webpack.config.cjs --mode development",
         "build:pml:types": "rimraf types && tsc --declaration --emitDeclarationOnly --outDir types/"
     },
     "keywords": [

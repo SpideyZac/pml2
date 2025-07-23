@@ -8,4 +8,4 @@ patches/
 core-index.json
 patches-index.json
 
-dist-pml2/
+dist/

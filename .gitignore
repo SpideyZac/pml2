@@ -4,4 +4,4 @@ pnpm-lock.yaml
 patched/
 patched-temp/
 
-dist-pml2/
+dist/
