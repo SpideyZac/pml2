@@ -35,6 +35,15 @@
             "patches/**/*",
             "public/**/*"
         ],
+        "extraResources": [
+            {
+                "from": "mods/",
+                "to": "mods/",
+                "filter": [
+                    "**/*"
+                ]
+            }
+        ],
         "win": {
             "target": [
                 {

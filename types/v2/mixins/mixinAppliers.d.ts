@@ -1,4 +1,4 @@
-import { Mixin } from "./types";
+import { Mixin, GlobalMixin } from "./types";
 /**
  * Base class for mixin appliers with common functionality.
  */
@@ -44,5 +44,17 @@ export declare class TailMixinApplier extends BaseMixinApplier {
  */
 export declare class InsertMixinApplier extends BaseMixinApplier {
     apply(mixin: Mixin): void;
+}
+/**
+ * Applies global mixins across all code.
+ */
+export declare class GlobalMixinApplier {
+    /**
+     * Applies a global mixin to a function.
+     * @param mixin The global mixin to apply.
+     * @param globalFn The name of the global function.
+     */
+    apply(mixin: GlobalMixin, globalFn: string): void;
+    private generateGlobalMixinContent;
 }
 export {};
