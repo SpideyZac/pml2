@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unsafe-function-type */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable prefer-const */
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 /**
  * Base class for all polytrack mods. Mods should export an instance of their mod class named `polyMod` in their main file.
  */
@@ -162,17 +167,16 @@ export class PolyMod {
      *
      * @param {PolyModLoader} pmlInstance - The instance of {@link PolyModLoader}.
      */
-    init = (pmlInstance: PolyModLoader) => { };
+    init = (pmlInstance: PolyModLoader) => {};
     /**
      * Function to run after all mods and polytrack have been initialized and loaded.
      */
-    postInit = () => { };
+    postInit = () => {};
     /**
      * Function to run before initialization of `simulation_worker.bundle.js`.
      */
-    simInit = () => { };
+    simInit = () => {};
 }
-
 
 /**
  * This class is used in {@link PolyModLoader}'s register mixin functions to set where functions should be injected into the target function.
@@ -245,7 +249,8 @@ export class PolyModLoader {
     }
     // @ts-ignore
     localStorage: Storage;
-    #polyModUrls: Array<{ base: string; version: string; loaded: boolean }> = [];
+    #polyModUrls: Array<{ base: string; version: string; loaded: boolean }> =
+        [];
     initStorage(localStorage: Storage) {
         /** @type {Storage} */
         this.localStorage = localStorage;
@@ -256,7 +261,10 @@ export class PolyModLoader {
 
         loadingScreenAPI.startLoadingScreen(this.#polyModUrls.length);
         for (let polyModObject of this.#polyModUrls) {
-            loadingScreenAPI.startImportMod(polyModObject.base, polyModObject.version);
+            loadingScreenAPI.startImportMod(
+                polyModObject.base,
+                polyModObject.version
+            );
 
             let latest = false;
             loadingScreenAPI.setCurrentTotalParts(2);
@@ -314,7 +322,7 @@ export class PolyModLoader {
                                 "submitLeaderboard",
                                 MixinType.OVERRIDE,
                                 [],
-                                () => { }
+                                () => {}
                             );
                         }
                     }
@@ -424,7 +432,9 @@ export class PolyModLoader {
         }
         const polyModUrl = `${polyModObject.base}/${polyModObject.version}`;
         try {
-            const manifestFile = await fetch(`${polyModUrl}/manifest.json`).then((r) => r.json());
+            const manifestFile = await fetch(
+                `${polyModUrl}/manifest.json`
+            ).then((r) => r.json());
             const mod = manifestFile.polymod;
             if (this.getMod(mod.id)) {
                 alert("This mod is already present!");
@@ -444,7 +454,8 @@ export class PolyModLoader {
                 mod.version = polyModObject.version;
                 newMod.applyManifest(manifestFile);
                 newMod.baseUrl = polyModObject.base;
-                newMod.applyManifest = () => console.warn("Can't apply manifest after initialization!");
+                newMod.applyManifest = () =>
+                    console.warn("Can't apply manifest after initialization!");
                 newMod.savedLatest = latest;
                 polyModObject.loaded = false;
                 this.#allMods.push(newMod);
@@ -622,7 +633,7 @@ export class PolyModLoader {
     get simWorkerFuncMixins() {
         return [...this.#simWorkerFuncMixins];
     }
-    getFromPolyTrack = (path: string): any => { };
+    getFromPolyTrack = (path: string): any => {};
     /**
      * Inject mixin under scope {@link scope} with target function name defined by {@link path}.
      * This only injects functions in `main.bundle.js`.
@@ -640,7 +651,7 @@ export class PolyModLoader {
         accessors: string | Array<string>,
         func: Function | string,
         extraOptinonal?: Function | string
-    ) => { };
+    ) => {};
     /**
      * Inject mixin with target function name defined by {@link path}.
      * This only injects functions in `main.bundle.js`.
@@ -656,14 +667,14 @@ export class PolyModLoader {
         accessors: string | Array<string>,
         func: Function | string,
         extraOptinonal?: Function | string
-    ) => { };
+    ) => {};
     registerClassWideMixin = (
         path: string,
         mixinType: MixinType,
         firstToken: string,
         funcOrSecondToken: string | Function,
         funcOptional?: Function | string
-    ) => { };
+    ) => {};
     /**
      * Inject mixin under scope {@link scope} with target function name defined by {@link path}.
      * This only injects functions in `simulation_worker.bundle.js`.
@@ -687,7 +698,7 @@ export class PolyModLoader {
             "submitLeaderboard",
             MixinType.OVERRIDE,
             [],
-            () => { }
+            () => {}
         );
         this.#simWorkerClassMixins.push({
             scope: scope,
@@ -719,7 +730,7 @@ export class PolyModLoader {
             "submitLeaderboard",
             MixinType.OVERRIDE,
             [],
-            () => { }
+            () => {}
         );
         this.#simWorkerFuncMixins.push({
             path: path,
@@ -734,4 +745,3 @@ export class PolyModLoader {
 const ActivePolyModLoader = new PolyModLoader("0.5.0");
 
 export { ActivePolyModLoader };
-

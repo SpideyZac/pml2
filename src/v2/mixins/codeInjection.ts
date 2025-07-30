@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-namespace */
 import { escapeRegExp } from "./utils";
 import { CallbackInfo } from "./types";
 
@@ -112,7 +113,6 @@ export namespace CodeInjector {
         return lastReturnIndex;
     }
 }
-
 
 /**
  * Utility class for generating callback content.

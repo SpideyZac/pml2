@@ -6,7 +6,6 @@ import {
     GlobalMixinApplier,
 } from "./mixinAppliers";
 
-
 /**
  * Utility class for managing mixins and global mixins.
  */

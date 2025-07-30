@@ -62,7 +62,8 @@ export function startLoadingScreen(mods: number) {
     loadingBarOuter.style.width = "600px";
     loadingBarOuter.style.height = "50px";
     loadingBarOuter.style.backgroundColor = "#28346a";
-    loadingBarOuter.style.clipPath = "polygon(9px 0, 100% 0, calc(100% - 9px) 100%, 0 100%)";
+    loadingBarOuter.style.clipPath =
+        "polygon(9px 0, 100% 0, calc(100% - 9px) 100%, 0 100%)";
     loadingBarOuter.style.overflow = "hidden";
 
     loadingBarInner = document.createElement("div");
@@ -70,7 +71,8 @@ export function startLoadingScreen(mods: number) {
     loadingBarInner.style.padding = "0";
     loadingBarInner.style.width = "560px";
     loadingBarInner.style.height = "20px";
-    loadingBarInner.style.clipPath = "polygon(3px 0, 100% 0, calc(100% - 3px) 100%, 0 100%)";
+    loadingBarInner.style.clipPath =
+        "polygon(3px 0, 100% 0, calc(100% - 3px) 100%, 0 100%)";
     loadingBarInner.style.backgroundColor = "#222244";
     loadingBarInner.style.boxShadow = "inset 0 0 6px #000000";
 
@@ -79,7 +81,8 @@ export function startLoadingScreen(mods: number) {
     loadingBarFill.style.padding = "0";
     loadingBarFill.style.width = "0";
     loadingBarFill.style.height = "100%";
-    loadingBarFill.style.clipPath = "polygon(2px 0, 100% 0, calc(100% - 2px) 100%, 0 100%)";
+    loadingBarFill.style.clipPath =
+        "polygon(2px 0, 100% 0, calc(100% - 2px) 100%, 0 100%)";
     loadingBarFill.style.backgroundColor = "#ffffff";
     loadingBarFill.style.boxShadow = "inset 0 0 6px #000000";
     loadingBarFill.style.transition = "width 0.1s ease-in-out";
@@ -128,7 +131,7 @@ export function startImportMod(url: string, version: string) {
     modP.innerText = `Importing mod from URL: ${current.url} @ version ${current.version}`;
 
     progressDiv.appendChild(modP);
-    // @ts-ignore
+    // @ts-expect-error it thinks text is undefined
     current.text = modP;
 }
 export function startFetchLatest() {
@@ -143,12 +146,12 @@ export function startFetchLatest() {
     latestP.innerText = `${currPartStr()} Fetching latest mod version from ${current.url}/latest.json`;
 
     progressDiv.appendChild(latestP);
-    // @ts-ignore
+    // @ts-expect-error it thinks text is undefined
     current.text = latestP;
 }
 export function finishFetchLatest(version: string) {
     current.version = version;
-    // @ts-ignore
+    // @ts-expect-error it thinks text is undefined
     current.text.innerText = `${currPartStr()} Fetched latest mod version: v${current.version}`;
 }
 export function startFetchManifest() {
@@ -163,7 +166,7 @@ export function startFetchManifest() {
     manifestP.innerText = `${currPartStr()} Fetching mod manifest from ${current.url}/${current.version}/manifest.json`;
 
     progressDiv.appendChild(manifestP);
-    // @ts-ignore
+    // @ts-expect-error it thinks text is undefined
     current.text = manifestP;
 }
 export function startFetchModMain(js: string) {
@@ -178,7 +181,7 @@ export function startFetchModMain(js: string) {
     mainP.innerText = `${currPartStr()} Fetching mod js from ${current.url}/${current.version}/${js}`;
 
     progressDiv.appendChild(mainP);
-    // @ts-ignore
+    // @ts-expect-error it thinks text is undefined
     current.text = mainP;
 }
 
@@ -188,7 +191,7 @@ export function finishImportMod() {
     updateBar(Math.floor(current.num) + 1);
 }
 export function errorCurrent() {
-    // @ts-ignore
+    // @ts-expect-error it thinks text is undefined
     current.text.style.color = "red";
 }
 

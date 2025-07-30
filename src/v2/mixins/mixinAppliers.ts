@@ -1,5 +1,9 @@
 import { Mixin, GlobalMixin, CallbackInfo } from "./types";
-import { FunctionParser, CodeInjector, CallbackGenerator } from "./codeInjection";
+import {
+    FunctionParser,
+    CodeInjector,
+    CallbackGenerator,
+} from "./codeInjection";
 
 /**
  * Base class for mixin appliers with common functionality.
