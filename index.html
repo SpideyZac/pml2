@@ -116,7 +116,7 @@
              * @returns {{ files: { [filePath: string]: string }, fileTypes: { [filePath: string]: 'bin' | 'text' } }} - An object containing the core files and their types.
              */
             async function loadCoreFiles() {
-                const response = await fetch("/core-index.json");
+                const response = await fetch("./core-index.json");
                 if (!response.ok) {
                     addErrorMessage("Failed to load core files index.");
                 }
@@ -136,7 +136,7 @@
                         addMessage(
                             `${msgPrefix}Loading core file: ${filename}`
                         );
-                        const response = await fetch(`/core/${filename}`);
+                        const response = await fetch(`./core/${filename}`);
                         if (!response.ok) {
                             addErrorMessage(
                                 `Failed to load core file: ${filename}`
@@ -174,7 +174,7 @@
              * @returns {FilePatch[][]} An array of patch groups, each containing file patches.
              */
             async function loadPatches() {
-                const response = await fetch("/patches-index.json");
+                const response = await fetch("./patches-index.json");
                 if (!response.ok) {
                     addErrorMessage("Failed to load patch index.");
                 }
@@ -196,7 +196,7 @@
                     const { filename, type } = getFilenameAndType(file);
                     clearMessages();
                     addMessage(`${msgPrefix}Loading patch file: ${filename}`);
-                    const response = await fetch(`/patches/${filename}`);
+                    const response = await fetch(`./patches/${filename}`);
                     if (!response.ok) {
                         addErrorMessage(
                             `Failed to load patch file: ${filename}`
@@ -251,7 +251,7 @@
             const vfsChannel = new MessageChannel(); // So that we can know when the service worker has recieved the VFS
             if ("serviceWorker" in navigator) {
                 navigator.serviceWorker
-                    .register("/sw.js", { scope: "/" })
+                    .register("./sw.js", { scope: "/" })
                     .then((registration) => {
                         addMessage(
                             `ServiceWorker registered with scope: ${registration.scope}`
@@ -330,7 +330,7 @@
                 "
             >
                 <img
-                    src="/public/pmllogo.svg"
+                    src="./public/pmllogo.svg"
                     style="
                         width: calc(100vw * (1000 / 1300));
                         height: 200px;

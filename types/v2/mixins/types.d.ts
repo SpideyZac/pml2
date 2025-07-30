@@ -45,11 +45,14 @@ export type Mixin = {
      * If the `ordinal` property is specified, the mixin will be applied after the nth occurrence of the target token.
      * If the `ordinal` property is not specified, the mixin will be applied after every occurrence of the target token.
      */
-    at: "HEAD" | "TAIL" | {
-        name: "INSERT";
-        target: string;
-        ordinal?: number;
-    };
+    at:
+        | "HEAD"
+        | "TAIL"
+        | {
+              name: "INSERT";
+              target: string;
+              ordinal?: number;
+          };
     /**
      * If the mixin is cancellable.
      * Defaults to false.

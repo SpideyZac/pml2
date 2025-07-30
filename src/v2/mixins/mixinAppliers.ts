@@ -7,6 +7,18 @@ import { CodeInjector } from "./codeInjector";
  * Base class for mixin appliers with common functionality.
  */
 abstract class BaseMixinApplier {
+    /**
+     * Applies a mixin to a method.
+     * @param mixin The mixin to apply.
+     */
+    public abstract apply(mixin: Mixin): void;
+
+    /**
+     * Generates the content for a mixin.
+     * @param mixin The mixin to generate content for.
+     * @throws Error if neither code nor callback is provided.
+     * @returns The generated content.
+     */
     protected generateMixinContent(mixin: Mixin): string {
         if (mixin.code !== undefined) {
             return mixin.code;
@@ -36,6 +48,12 @@ abstract class BaseMixinApplier {
         );
     }
 
+    /**
+     * Reconstructs a function with the given method name, parameters, and body.
+     * @param method The name of the method to reconstruct.
+     * @param params The parameters of the method.
+     * @param body The body of the method.
+     */
     protected reconstructFunction(
         method: string,
         params: string[],

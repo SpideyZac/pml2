@@ -63,7 +63,7 @@ function walkDirectory(dir, relPath, fileMap, fileTypes) {
         const fullPath = path.join(dir, file);
         const newRelPath = path.join(relPath, file);
         if (fs.statSync(fullPath).isDirectory()) {
-            walkDirectory(fullPath, newRelPath, fileMap);
+            walkDirectory(fullPath, newRelPath, fileMap, fileTypes);
         } else {
             if (isBinaryFileSync(fullPath)) {
                 fileMap[newRelPath] = fs

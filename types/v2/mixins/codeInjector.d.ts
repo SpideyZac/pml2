@@ -17,7 +17,12 @@ export declare class CodeInjector {
      * @param ordinal If specified, only inject at the nth occurrence.
      * @returns The modified code.
      */
-    static injectAtIndices(code: string, content: string, targetIndices: number[], ordinal?: number): string;
+    static injectAtIndices(
+        code: string,
+        content: string,
+        targetIndices: number[],
+        ordinal?: number
+    ): string;
     /**
      * Finds the last return statement in the main scope of a method.
      * @param code The method body code.
