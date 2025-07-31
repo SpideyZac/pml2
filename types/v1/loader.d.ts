@@ -39,7 +39,7 @@ export declare class PolyMod {
     IconSrc: string;
     set iconSrc(src: string);
     loaded: boolean;
-    set setLoaded(status: boolean);
+    set setLoaded(status: any);
     /**
      * The mod's loaded state.
      *
@@ -105,9 +105,9 @@ export declare class PolyMod {
      * Function to run during initialization of mods. Note that this is called *before* polytrack itself is loaded,
      * but *after* everything has been declared.
      *
-     * @param {PolyModLoader} pmlInstance - The instance of {@link PolyModLoader}.
+     * @param {PolyModLoaderV1} pmlInstance - The instance of {@link PolyModLoaderV1}.
      */
-    init: (pmlInstance: PolyModLoader) => void;
+    init: (pmlInstance: PolyModLoaderV1) => void;
     /**
      * Function to run after all mods and polytrack have been initialized and loaded.
      */
@@ -118,7 +118,7 @@ export declare class PolyMod {
     simInit: () => void;
 }
 /**
- * This class is used in {@link PolyModLoader}'s register mixin functions to set where functions should be injected into the target function.
+ * This class is used in {@link PolyModLoaderV1}'s register mixin functions to set where functions should be injected into the target function.
  */
 export declare enum MixinType {
     /**
@@ -158,9 +158,52 @@ export declare enum MixinType {
      */
     CLASSREPLACE = 7,
 }
-export declare class PolyModLoader {
+export declare enum SettingType {
+    BOOL = "boolean",
+    SLIDER = "slider",
+    CUSTOM = "custom",
+}
+export declare class SoundManager {
     #private;
+    constructor(soundClass: any);
+    registerSound(id: string, url: string): void;
+    playSound(id: string, gain: number): void;
+    playUIClick(): void;
+}
+export declare class EditorExtras {
+    #private;
+    pml: PolyModLoaderV1;
+    ignoredBlocks: Array<number>;
+    constructor(pml: PolyModLoaderV1);
+    construct(editorClass: any): void;
+    blockNumberFromId(id: any): number;
+    get getSimBlocks(): string[];
+    get trackEditorClass(): any;
+    registerModel(url: string): void;
+    registerCategory(id: string, defaultId: string): void;
+    registerBlock(
+        id: string,
+        categoryId: string,
+        checksum: string,
+        sceneName: string,
+        modelName: string,
+        overlapSpace: Array<Array<Array<number>>>,
+        extraSettings?: {
+            ignoreOnExport?: boolean;
+            specialSettings?: {
+                type: string;
+                center: Array<number>;
+                size: Array<number>;
+            };
+        }
+    ): void;
+    init(): void;
+}
+export declare class PolyModLoaderV1 {
+    #private;
+    editorExtras: EditorExtras;
     constructor(polyVersion: string);
+    get polyVersion(): string;
     localStorage: Storage;
     initStorage(localStorage: Storage): void;
     importMods(): Promise<void>;
@@ -185,7 +228,7 @@ export declare class PolyModLoader {
     /**
      * Add a mod to the internal mod list. Added mod is given least priority.
      *
-     * @param polyModObject - The mod's JSON representation to add.
+     * @param {{base: string, version: string, loaded: bool}} polyModObject - The mod's JSON representation to add.
      */
     addMod(
         polyModObject: {
@@ -195,31 +238,58 @@ export declare class PolyModLoader {
         },
         autoUpdate: boolean
     ): Promise<PolyMod | undefined>;
+    registerSettingCategory(name: string): void;
+    registerBindCategory(name: string): void;
+    registerSetting(
+        name: string,
+        id: string,
+        type: SettingType,
+        defaultOption: any,
+        optionsOptional?: Array<{
+            title: string;
+            value: string;
+        }>
+    ): void;
+    settingClass: any;
+    soundManager: SoundManager;
+    registerKeybind(
+        name: string,
+        id: string,
+        event: string,
+        defaultBind: string,
+        secondBindOptional: string | null,
+        callback: Function
+    ): void;
+    getSetting(id: string): any;
+    registerSoundOverride(id: string, url: string): void;
     /**
      * Remove a mod from the internal list.
      *
-     * @param mod - The mod to remove.
+     * @param {PolyMod} mod - The mod to remove.
      */
-    removeMod(mod: PolyMod): void;
+    removeMod(mod: any): void;
     /**
      * Set the loaded state of a mod.
      *
-     * @param mod   - The mod to set the state of.
-     * @param state - The state to set. `true` is loaded, `false` is unloaded.
+     * @param {PolyMod} mod   - The mod to set the state of.
+     * @param {boolean} state - The state to set. `true` is loaded, `false` is unloaded.
      */
-    setModLoaded(mod: PolyMod, state: boolean): void;
+    setModLoaded(mod: any, state: any): void;
+    popUpClass: any;
     initMods(): void;
     postInitMods(): void;
     simInitMods(): void;
     /**
      * Access a mod by its mod ID.
      *
-     * @param id - The ID of the mod to get
-     * @returns  - The requested mod's object.
+     * @param   {string} id - The ID of the mod to get
+     * @returns {PolyMod}   - The requested mod's object.
      */
-    getMod(id: string): PolyMod | undefined;
+    getMod(id: any): PolyMod | undefined;
     /**
      * Get the list of all mods.
+     *
+     * @type {PolyMod[]}
      */
     getAllMods(): PolyMod[];
     /**
@@ -318,5 +388,5 @@ export declare class PolyModLoader {
         extraOptinonal?: Function | string
     ): void;
 }
-declare const ActivePolyModLoader: PolyModLoader;
+declare const ActivePolyModLoader: PolyModLoaderV1;
 export { ActivePolyModLoader };

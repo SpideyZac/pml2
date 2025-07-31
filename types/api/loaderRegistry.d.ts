@@ -1,3 +1,4 @@
+import * as PML1 from "../v1";
 export declare const ActiveLoaderRegistry: {
-    v1: import("../v1/loader").PolyModLoader;
+    v1: typeof PML1;
 };

@@ -54,7 +54,7 @@ function walkDirectory(dir, relPath, fileMap, fileTypes) {
     const files = fs.readdirSync(dir);
     files.forEach((file) => {
         const fullPath = path.join(dir, file);
-        const newRelPath = path.join(relPath, file);
+        const newRelPath = path.join(relPath, file).replace(/\\/g, "/");
         if (fs.statSync(fullPath).isDirectory()) {
             walkDirectory(fullPath, newRelPath, fileMap, fileTypes);
         } else {
