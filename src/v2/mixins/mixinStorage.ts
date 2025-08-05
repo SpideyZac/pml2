@@ -10,14 +10,14 @@ import {
  * Utility class for managing mixins and global mixins.
  */
 export class MixinStorage {
-    private static mixins: Mixin[] = [];
-    private static globalMixins: GlobalMixin[] = [];
+    private mixins: Mixin[] = [];
+    private globalMixins: GlobalMixin[] = [];
 
     /**
      * Adds a mixin to the storage.
      * @param mixin The mixin to add.
      */
-    static addMixin(mixin: Mixin): void {
+    addMixin(mixin: Mixin): void {
         this.mixins.push(mixin);
     }
 
@@ -25,7 +25,7 @@ export class MixinStorage {
      * Retrieves all mixins stored in the storage.
      * @returns An array of mixins.
      */
-    static getMixins(): Mixin[] {
+    getMixins(): Mixin[] {
         return this.mixins;
     }
 
@@ -33,7 +33,7 @@ export class MixinStorage {
      * Adds a global mixin to the storage.
      * @param mixin The global mixin to add.
      */
-    static addGlobalMixin(mixin: GlobalMixin): void {
+    addGlobalMixin(mixin: GlobalMixin): void {
         this.globalMixins.push(mixin);
     }
 
@@ -41,7 +41,7 @@ export class MixinStorage {
      * Retrieves all global mixins stored in the storage.
      * @returns An array of global mixins.
      */
-    static getGlobalMixins(): GlobalMixin[] {
+    getGlobalMixins(): GlobalMixin[] {
         return this.globalMixins;
     }
 }
