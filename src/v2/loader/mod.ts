@@ -1,3 +1,4 @@
+import { PolyModLoaderV2 } from "./pml2";
 import { MixinStorage } from "../mixins";
 
 /**
@@ -81,10 +82,9 @@ export abstract class PolyModV2 {
     /**
      * Initialize the mod with the PolyMod instance.
      * This is called after the mixins are registered.
-     * @param {any} pmlInstance - The PolyMod instance.
+     * @param pmlInstance - The PolyMod instance.
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    public abstract init(pmlInstance: any): void;
+    public abstract init(pmlInstance: PolyModLoaderV2): void;
     /**
      * This is called after every mod is initialized.
      */

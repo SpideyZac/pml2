@@ -170,9 +170,9 @@ export class PolyMod {
      * Function to run during initialization of mods. Note that this is called *before* polytrack itself is loaded,
      * but *after* everything has been declared.
      *
-     * @param {PolyModLoaderV1} pmlInstance - The instance of {@link PolyModLoaderV1}.
+     * @param {PolyModLoader} pmlInstance - The instance of {@link PolyModLoader}.
      */
-    init = (pmlInstance: PolyModLoaderV1) => {};
+    init = (pmlInstance: PolyModLoader) => {};
     /**
      * Function to run after all mods and polytrack have been initialized and loaded.
      */
@@ -184,7 +184,7 @@ export class PolyMod {
 }
 
 /**
- * This class is used in {@link PolyModLoaderV1}'s register mixin functions to set where functions should be injected into the target function.
+ * This class is used in {@link PolyModLoader}'s register mixin functions to set where functions should be injected into the target function.
  */
 export enum MixinType {
     /**
@@ -286,7 +286,7 @@ export class SoundManager {
 
 export class EditorExtras {
     #editorClass: any;
-    pml: PolyModLoaderV1;
+    pml: PolyModLoader;
     #latestCategory: number = 8;
     #latestBlock: number = 155;
     #categoryDefaults: Array<string> = [];
@@ -301,7 +301,7 @@ export class EditorExtras {
         "models/signs.glb",
         "models/wall_track.glb",
     ];
-    constructor(pml: PolyModLoaderV1) {
+    constructor(pml: PolyModLoader) {
         this.pml = pml;
     }
     construct(editorClass: any) {
@@ -387,7 +387,7 @@ export class EditorExtras {
     }
 }
 
-export class PolyModLoaderV1 {
+export class PolyModLoader {
     #polyVersion: string;
     #allMods: Array<PolyMod>;
     editorExtras: EditorExtras;
@@ -558,7 +558,7 @@ export class PolyModLoaderV1 {
     }
     // TODO: change to use local mods folder
     getPolyModsStorage() {
-        const polyModsStorage = this.localStorage.getItem("polyModsV1");
+        const polyModsStorage = this.localStorage.getItem("polyMods");
         if (polyModsStorage) {
             this.#polyModUrls = JSON.parse(polyModsStorage);
         } else {
@@ -571,7 +571,7 @@ export class PolyModLoaderV1 {
             // ];
             this.#polyModUrls = [];
             this.localStorage.setItem(
-                "polyModsV1",
+                "polyMods",
                 JSON.stringify(this.#polyModUrls)
             );
         }
@@ -596,16 +596,11 @@ export class PolyModLoaderV1 {
         }
         this.#polyModUrls = savedMods;
         this.localStorage.setItem(
-            "polyModsV1",
+            "polyMods",
             JSON.stringify(this.#polyModUrls)
         );
     }
-    /**
-     * Reorder a mod in the internal list to change its priority in mod loading.
-     *
-     * @param {PolyMod} mod  - The mod to reorder.
-     * @param {number} delta - The amount to reorder it by. Positive numbers decrease priority, negative numbers increase priority.
-     */
+
     reorderMod(mod: PolyMod, delta: number) {
         if (!mod) return;
         if (mod.id === "pmlcore") {
@@ -1137,6 +1132,6 @@ export class PolyModLoaderV1 {
     }
 }
 
-const ActivePolyModLoader = new PolyModLoaderV1("0.5.1");
+const ActivePolyModLoader = new PolyModLoader("0.5.1");
 
 export { ActivePolyModLoader };

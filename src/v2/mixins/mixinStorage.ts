@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-namespace */
 import { Mixin, GlobalMixin } from "./types";
 import {
     HeadMixinApplier,
@@ -10,14 +11,14 @@ import {
  * Utility class for managing mixins and global mixins.
  */
 export class MixinStorage {
-    private static mixins: Mixin[] = [];
-    private static globalMixins: GlobalMixin[] = [];
+    private mixins: Mixin[] = [];
+    private globalMixins: GlobalMixin[] = [];
 
     /**
      * Adds a mixin to the storage.
      * @param mixin The mixin to add.
      */
-    static addMixin(mixin: Mixin): void {
+    addMixin(mixin: Mixin): void {
         this.mixins.push(mixin);
     }
 
@@ -25,7 +26,7 @@ export class MixinStorage {
      * Retrieves all mixins stored in the storage.
      * @returns An array of mixins.
      */
-    static getMixins(): Mixin[] {
+    getMixins(): Mixin[] {
         return this.mixins;
     }
 
@@ -33,7 +34,7 @@ export class MixinStorage {
      * Adds a global mixin to the storage.
      * @param mixin The global mixin to add.
      */
-    static addGlobalMixin(mixin: GlobalMixin): void {
+    addGlobalMixin(mixin: GlobalMixin): void {
         this.globalMixins.push(mixin);
     }
 
@@ -41,7 +42,7 @@ export class MixinStorage {
      * Retrieves all global mixins stored in the storage.
      * @returns An array of global mixins.
      */
-    static getGlobalMixins(): GlobalMixin[] {
+    getGlobalMixins(): GlobalMixin[] {
         return this.globalMixins;
     }
 }
@@ -49,23 +50,23 @@ export class MixinStorage {
 /**
  * Central registry for applying mixins to methods.
  */
-export class MixinRegistry {
-    private static headApplier = new HeadMixinApplier();
-    private static tailApplier = new TailMixinApplier();
-    private static insertApplier = new InsertMixinApplier();
-    private static globalApplier = new GlobalMixinApplier();
+export namespace MixinRegistry {
+    const headApplier = new HeadMixinApplier();
+    const tailApplier = new TailMixinApplier();
+    const insertApplier = new InsertMixinApplier();
+    const globalApplier = new GlobalMixinApplier();
 
     /**
      * Registers a mixin to be applied to a method.
      * @param mixin The mixin to be registered.
      */
-    static registerMixin(mixin: Mixin): void {
+    export function registerMixin(mixin: Mixin): void {
         if (mixin.at === "HEAD") {
-            this.headApplier.apply(mixin);
+            headApplier.apply(mixin);
         } else if (mixin.at === "TAIL") {
-            this.tailApplier.apply(mixin);
+            tailApplier.apply(mixin);
         } else if (typeof mixin.at === "object" && mixin.at.name === "INSERT") {
-            this.insertApplier.apply(mixin);
+            insertApplier.apply(mixin);
         } else {
             throw new Error("Invalid mixin location.");
         }
@@ -76,7 +77,10 @@ export class MixinRegistry {
      * @param mixin The global mixin to be registered.
      * @param globalFn The name of the global function where the mixin is applied.
      */
-    static registerGlobalMixin(mixin: GlobalMixin, globalFn: string): void {
-        this.globalApplier.apply(mixin, globalFn);
+    export function registerGlobalMixin(
+        mixin: GlobalMixin,
+        globalFn: string
+    ): void {
+        globalApplier.apply(mixin, globalFn);
     }
 }
