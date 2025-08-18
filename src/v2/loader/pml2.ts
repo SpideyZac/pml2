@@ -1,38 +1,79 @@
 /* eslint-disable @typescript-eslint/no-namespace */
+import diff from "semver/functions/diff";
+
 import { PolyModV2 } from "./mod";
+
 import { PolyVersion } from "../../api/loaderRegistry";
+import { loadingScreenAPI } from "../../api";
+
+import { MixinStorage } from "../mixins";
+
+type SerializedMod = {
+    baseURL: string;
+    version: string;
+    loaded: boolean;
+};
 
 export class PolyModLoaderV2 {
-    public modStorage: LoaderImpl.ModStorage;
+    private mods: PolyModV2[];
+    // @ts-expect-error - Initialized by function
+    private modStorage: Storage;
+    private mainMixinStorage = new MixinStorage();
+    private simMixinStorage = new MixinStorage();
 
     constructor() {
-        this.modStorage = new LoaderImpl.ModStorage();
-    }
-
-    get mods() {
-        return this.modStorage.mods;
+        this.mods = [];
     }
 
     initStorage(storage: Storage) {
-        this.modStorage.storage = storage;
-        if (this.modStorage.storage.getItem("polyModsV2") === null)
-            this.modStorage.storage.setItem("polyModsV2", "");
+        this.modStorage = storage;
+        if (this.modStorage.getItem("polyModsV2") === null)
+            this.modStorage.setItem("polyModsV2", "");
+    }
+
+    get storedMods(): SerializedMod[] {
+        return JSON.parse(this.modStorage.getItem("polyModsV2")!);
     }
     saveMods() {
-        this.modStorage.saveMods();
+        const serialized: SerializedMod[] = [];
+        for (const mod of this.mods) {
+            serialized.push({
+                baseURL: mod.baseUrl,
+                version: mod.version,
+                loaded: mod.loaded,
+            });
+        }
+        this.modStorage.setItem("polyModsV2", JSON.stringify(serialized));
+    }
+
+    addMod(mod: PolyModV2) {
+        if (this.mods.findIndex((mod2) => mod.id === mod2.id) !== -1) {
+            alert("Mod already exists in list!");
+            return;
+        }
+        this.mods.push(mod);
+    }
+
+    getMod(id: string): PolyModV2 | undefined {
+        return this.mods.find((mod) => mod.id === id);
     }
 
     async importMods() {
-        for (const mod of this.modStorage.storedMods) {
+        loadingScreenAPI.startLoadingScreen(this.storedMods.length);
+
+        for (const mod of this.storedMods) {
+            loadingScreenAPI.startImportMod(mod.baseURL, mod.version);
+
             const data = await LoaderImpl.ImportSystem.fetchManifest(
                 mod.baseURL,
                 mod.version
             ).catch((e) => {
+                loadingScreenAPI.errorCurrent();
                 alert("Could not fetch manifest of mod.");
                 console.error("Error while fetching manifest:", e);
                 return null;
             });
-            if (data === null) return;
+            if (data === null) continue;
 
             const polyModV2 = await LoaderImpl.ImportSystem.importMod(
                 mod.baseURL,
@@ -40,14 +81,29 @@ export class PolyModLoaderV2 {
                 data.autoUpdate,
                 data.manifest
             ).catch((e) => {
+                loadingScreenAPI.errorCurrent();
                 alert("Could not import mod.");
                 console.error("Error while importing mod: ", e);
                 return null;
             });
-            if (polyModV2 === null) return;
+            if (polyModV2 === null) continue;
 
-            this.modStorage.addMod(polyModV2);
+            this.addMod(polyModV2);
+            loadingScreenAPI.finishImportMod();
         }
+
+        loadingScreenAPI.endLoadingScreen();
+    }
+
+    setupMods() {
+        for (const mod of this.mods)
+            LoaderImpl.InitSystem.initMod(
+                this,
+                mod,
+                this.mainMixinStorage,
+                this.simMixinStorage
+            );
+        for (const mod of this.mods) mod.postInit();
     }
 }
 
@@ -75,15 +131,22 @@ namespace LoaderImpl {
             autoUpdate: boolean;
             loadedVersion: string;
         }> {
+            loadingScreenAPI.setCurrentTotalParts(2);
             let autoUpdate = false;
             if (version === "latest") {
+                loadingScreenAPI.setCurrentTotalParts(3);
+                loadingScreenAPI.startFetchLatest();
+
                 autoUpdate = true;
                 const latestFile = await fetch(`${modURL}/latest.json`).then(
                     (r) => r.json()
                 );
                 version = latestFile[PolyVersion];
+
+                loadingScreenAPI.finishFetchLatest(version);
             }
 
+            loadingScreenAPI.startFetchManifest();
             return {
                 manifest: await fetch(
                     `${modURL}/${version}/manifest.json`
@@ -99,6 +162,10 @@ namespace LoaderImpl {
             autoUpdate: boolean,
             manifest: Manifest
         ): Promise<PolyModV2> {
+            loadingScreenAPI.startFetchModMain(
+                `${headURL}/${version}/${manifest.polymod.main}`
+            );
+
             const modJS = await import(
                 `${headURL}/${version}/${manifest.polymod.main}`
             );
@@ -125,41 +192,46 @@ namespace LoaderImpl {
         }
     }
 
-    type SerializedMod = {
-        baseURL: string;
-        version: string;
-        loaded: boolean;
-    };
-    export class ModStorage {
-        mods: PolyModV2[];
-        // @ts-expect-error - Initialized by function.
-        storage: Storage;
+    export namespace InitSystem {
+        export function initMod(
+            loader: PolyModLoaderV2,
+            mod: PolyModV2,
+            mainMixinStorage: MixinStorage,
+            simMixinStorage: MixinStorage
+        ) {
+            // Dont initialize a mod twice.
+            if (mod.initialized) return;
 
-        constructor() {
-            this.mods = [];
-        }
+            // Initialize all dependencies first
+            for (const dep of mod.dependencies) {
+                const depMod = loader.getMod(dep.id);
+                if (depMod === undefined) {
+                    // TODO: Do something if dependency does not exist.
+                    //       Perhaps a popup for importing the dependency mod?
+                    return;
+                }
 
-        get storedMods(): SerializedMod[] {
-            return JSON.parse(this.storage.getItem("polyModsV2")!);
-        }
-        saveMods() {
-            const serialized: SerializedMod[] = [];
-            for (const mod of this.mods) {
-                serialized.push({
-                    baseURL: mod.baseUrl,
-                    version: mod.version,
-                    loaded: mod.loaded,
-                });
+                // Make sure dependency version is acceptable for what the mod requires
+                const difference = diff(dep.version, depMod.version);
+                // A patch version change should affect nothing (unless this mod intentionally uses a bug in the dependency mod, in which case wtf).
+                // A minor version change might deprecate some functions, introduce new functions, etc. But the API this mod uses should stay the same so it is fine.
+                // A major version change could do anything, it is NOT fine.
+                if (difference === "major" || difference === "premajor") {
+                    // TODO: Some error screen or something
+                    return;
+                }
+
+                initMod(loader, depMod, mainMixinStorage, simMixinStorage);
             }
-            this.storage.setItem("polyModsV2", JSON.stringify(serialized));
-        }
 
-        addMod(mod: PolyModV2) {
-            if (this.mods.findIndex((mod2) => mod.id === mod2.id) !== -1) {
-                alert("Mod already exists in list!");
-                return;
+            try {
+                mod.registerMixins(mainMixinStorage, simMixinStorage);
+
+                mod.init(loader);
+                mod.initialized = true;
+            } catch {
+                // TODO
             }
-            this.mods.push(mod);
         }
     }
 }
